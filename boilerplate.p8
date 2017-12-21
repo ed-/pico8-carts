@@ -41,21 +41,23 @@ function new_game()
 
   local game = {}
   
-  game.buttons = {}
+  game.actors = {}
   
-  add(game.buttons, new_button(0, "⬅️", 8 *  4, 8 * 8))
-  add(game.buttons, new_button(1, "➡️", 8 *  6, 8 * 8))
-  add(game.buttons, new_button(2, "⬆️", 8 *  5, 8 * 7))
-  add(game.buttons, new_button(3, "⬇️", 8 *  5, 8 * 9))
-  add(game.buttons, new_button(4, "🅾️", 8 *  9, 8 * 8))
-  add(game.buttons, new_button(5, "❎", 8 * 11, 8 * 8))
+  add(game.actors, new_button(0, "⬅️", 8 *  4, 8 * 8))
+  add(game.actors, new_button(1, "➡️", 8 *  6, 8 * 8))
+  add(game.actors, new_button(2, "⬆️", 8 *  5, 8 * 7))
+  add(game.actors, new_button(3, "⬇️", 8 *  5, 8 * 9))
+  add(game.actors, new_button(4, "🅾️", 8 *  9, 8 * 8))
+  add(game.actors, new_button(5, "❎", 8 * 11, 8 * 8))
+
+  add(game.actors, new_cursor())
     
   game.update = function(self)
-    foreach(game.buttons, update)
+    foreach(game.actors, update)
   end
 
   game.draw = function(self)
-    foreach(game.buttons, draw)
+    foreach(game.actors, draw)
   end
   
   return game
@@ -64,15 +66,15 @@ end
 -- button
 
 function new_button(key, label, x, y)
-  button = {}
+  z = {}
   
-  button.key = key
-  button.label = label
-  button.labelcolor = 5
-  button.x = x
-  button.y = y
+  z.key = key
+  z.label = label
+  z.labelcolor = 5
+  z.x = x
+  z.y = y
   
-  button.update = function(self)
+  z.update = function(self)
     if btn(self.key) then
       self.labelcolor = 7
     else
@@ -80,9 +82,63 @@ function new_button(key, label, x, y)
     end
   end
   
-  button.draw = function(self)
+  z.draw = function(self)
     print(self.label, self.x, self.y, self.labelcolor)
   end
   
-  return button
+  return z
+end
+
+-->8
+-- cursor
+function new_cursor()
+  z = {}
+  
+  z.x = 0
+  z.y = 0
+  
+  z.update = function(self)
+    if btnp(0) then
+      self:left()
+    end
+    if btnp(1) then
+      self:right()
+    end
+    if btnp(2) then
+      self:up()
+    end
+    if btnp(3) then
+      self:down()
+    end
+  end
+
+  z.left = function(self)
+    if (self.x > 0) then
+      self.x -= 1
+    end
+  end
+
+  z.right = function(self)
+    if (self.x < 15) then
+      self.x += 1
+    end
+  end
+
+  z.up = function(self)
+    if (self.y > 0) then
+      self.y -= 1
+    end
+  end
+
+  z.down = function(self)
+    if (self.y < 15) then
+      self.y += 1
+    end
+  end
+  
+  z.draw = function(self)
+    spr(0, self.x * 8, self.y * 8)
+  end
+  
+  return z
 end
