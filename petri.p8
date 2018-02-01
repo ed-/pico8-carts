@@ -4,6 +4,24 @@ __lua__
 -- petri
 -- slumberheart
 
+--[[
+todo
+- better difficulty levels
+- created levels
+- save/load/share in-progress
+- notes/single-cell test mode
+- better instructions
+- more sounds
+- better win fanfare
+
+more ideas
+- stick to one size
+- display puzzle id
+- level sets
+- info panel for cursor
+
+]]
+
 function _init()
   cls()
   frame = 0
@@ -119,10 +137,10 @@ function instr_draw()
     print("  ⬇️")
     print(" ")
     print(" ")
-    print("🅾️       toggle cell alive/dead")
+    print("  🅾️     toggle cell alive/dead")
     print(" ")
     print(" ")
-    print("❎       toggle goal/guess view")
+    print("  ❎     toggle goal/guess view")
     print("⬅️ prev page", 80, 122, 7)
     print("❎ back to game", 0, 122, 7)
   end  
