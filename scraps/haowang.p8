@@ -32,7 +32,6 @@ end
 function _draw()
   game:draw()
 end
-
 -->8
 -- game
 function new_game()
@@ -57,6 +56,10 @@ function new_game()
     else
       selected = "board"
     end
+    if btnp(4) then
+      t = self.tileset:pop()
+      self.board:put(t)
+    end
     if (frame % 5 == 0) self.cloud_offset = (self.cloud_offset + 1) % 16
     self.board:update()
     self.tileset:update()
@@ -73,6 +76,8 @@ end
 --board
 function new_board()
   local board = {}
+  board.row = 0
+  board.col = 0
   board.b_cursor = new_b_cursor()
   for x=0,6 do
     for y=0,5 do
@@ -82,11 +87,26 @@ function new_board()
       mset((x * 2) + 1, (y * 2) + 1, 61)
     end
   end
+  board.can_place = function(self, t)
+    return true
+  end
+  board.put = function(self, t)
+    if (not self:can_place(t)) return
+    local r = self.row
+    local c = self.col
+    local tt = t.id
+    mset( r * 2,       c * 2,      tt)
+    mset((r * 2) + 1,  c * 2,      tt + 1)
+    mset( r * 2,      (c * 2) + 1, tt + 16)
+    mset((r * 2) + 1, (c * 2) + 1, tt + 17)
+  end
   board.update = function(self)
     self.b_cursor:update()
+    self.row = self.b_cursor.x
+    self.col = self.b_cursor.y
   end
   board.draw = function(self)
-    palt(0, 0)
+    palt(0, false)
     map(0, 0, 8, 8, 14, 12)
     palt()
     self.b_cursor:draw()
@@ -99,6 +119,7 @@ function new_tileset()
   local tileset = {}
   tileset.t_cursor = new_t_cursor()
   tileset.tiles = {}
+  tileset.i = 1
   tileset.add_tile = function(self)
     local t = new_tile()
     if flr(rnd(40)) == 0 then
@@ -110,8 +131,16 @@ function new_tileset()
   tileset.add_stoneblock = function(self)
     add(self.tiles, new_stoneblock())
   end
+  tileset.pop = function(self)
+    t = self.tiles[self.i]
+    del(self.tiles, t)
+    self:add_tile()
+    return t
+  end
   tileset.update = function(self)
     self.t_cursor:update()
+    self.i = self.t_cursor.i
+    self.t = self.tiles[i]
   end
   tileset.draw = function(self)
     palt(0, false)
@@ -178,14 +207,14 @@ function new_b_cursor()
 end
 function new_t_cursor()
   local tc = {}
-  tc.i = 0
+  tc.i = 1
   tc.left = function(self)
     self.i -= 1
-    if (self.i < 0) self.i = 0
+    if (self.i < 1) self.i = 1
   end
   tc.right = function(self)
     self.i += 1
-    if (self.i > 7) self.i = 7
+    if (self.i > 8) self.i = 8
   end
   tc.update = function(self)
     if (selected != "tileset") return
@@ -194,7 +223,7 @@ function new_t_cursor()
   end
   tc.draw = function(self)
     if (selected != "tileset") pal(7, 8)
-    spr(46, self.i * 16, 112, 2, 2, 1)
+    spr(46, (self.i * 16) - 16, 112, 2, 2, 1)
     pal()
   end
   return tc
