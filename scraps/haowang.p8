@@ -1,14 +1,15 @@
 pico-8 cartridge // http://www.pico-8.com
 version 16
 __lua__
--- wang tile puzzle
--- -
+-- haowang
+-- slumberheart
 
--- eleven tiles, four colors
--- fill in the region with the
--- tiles provided
--- if you get in a pinch you can
--- use the stone block
+--[[
+ eleven tiles, four colors
+ fill in the region with the
+ tiles provided
+ stone blocks match every color
+]]
 
 -- sprite flags
 -- uu ll rr dd
@@ -34,10 +35,8 @@ end
 
 -->8
 -- game
-
 function new_game()
   local game = {}
-
   game.board = new_board()
   game.tileset = new_tileset()
   game.tileset:add_stoneblock()
@@ -45,7 +44,6 @@ function new_game()
     game.tileset:add_tile()
   end
   game.cloud_offset = 0
-
   game.draw_clouds = function(self)
     for y=-1,7 do
       for x=0,7 do
@@ -53,7 +51,6 @@ function new_game()
       end
     end
   end
-
   game.update = function(self)
     if btn(5) then
       selected = "tileset"
@@ -64,14 +61,12 @@ function new_game()
     self.board:update()
     self.tileset:update()
   end
-
   game.draw = function(self)
     cls()
     self:draw_clouds()
     self.board:draw()
     self.tileset:draw()
   end
-
   return game
 end
 -->8
@@ -79,7 +74,6 @@ end
 function new_board()
   local board = {}
   board.b_cursor = new_b_cursor()
-
   for x=0,6 do
     for y=0,5 do
       mset( x * 2,       y * 2,      44)
@@ -88,18 +82,15 @@ function new_board()
       mset((x * 2) + 1, (y * 2) + 1, 61)
     end
   end
-
   board.update = function(self)
     self.b_cursor:update()
   end
-
   board.draw = function(self)
     palt(0, 0)
     map(0, 0, 8, 8, 14, 12)
     palt()
     self.b_cursor:draw()
   end
-
   return board
 end
 -->8
@@ -108,7 +99,6 @@ function new_tileset()
   local tileset = {}
   tileset.t_cursor = new_t_cursor()
   tileset.tiles = {}
-
   tileset.add_tile = function(self)
     local t = new_tile()
     if flr(rnd(40)) == 0 then
@@ -117,16 +107,12 @@ function new_tileset()
       add(self.tiles, new_tile())
     end
   end
-
   tileset.add_stoneblock = function(self)
     add(self.tiles, new_stoneblock())
   end
-
   tileset.update = function(self)
-    if (btnp(0)) self:add_tile()
     self.t_cursor:update()
   end
-
   tileset.draw = function(self)
     palt(0, false)
     for i=1,#self.tiles do
@@ -136,7 +122,6 @@ function new_tileset()
     palt()
     self.t_cursor:draw()
   end
-
   return tileset
 end
 -->8
@@ -144,11 +129,9 @@ end
 function new_tile()
   local tile = {}
   alltiles = {2, 4, 6, 8, 10, 12, 14, 32, 34, 36, 38}
-  tile.id = flr(rnd(#alltiles - 1) + 1)
-
+  tile.id = alltiles[flr(rnd(#alltiles - 1) + 1)]
   return tile
 end
-
 function new_stoneblock()
   local sb = new_tile()
   sb.id = 40
@@ -161,27 +144,22 @@ function new_b_cursor()
   local bc = {}
   bc.x = 0
   bc.y = 0
-
   bc.left = function(self)
     self.x -= 1
     if (self.x < 0) self.x = 0
   end
-
   bc.right = function(self)
     self.x += 1
     if (self.x > 6) self.x = 6
   end
-
   bc.up = function(self)
     self.y -= 1
     if (self.y < 0) self.y = 0
   end
-
   bc.down = function(self)
     self.y += 1
     if (self.y > 5) self.y = 5
   end
-
   bc.update = function(self)
     if (selected != "board") return
     if (btnp(0))self:left()
@@ -189,7 +167,6 @@ function new_b_cursor()
     if (btnp(2))self:up()
     if (btnp(3))self:down()
   end
-
   bc.draw = function(self)
     if (selected != "board") pal(7, 8)
     local x = (16 * self.x) + 8
@@ -197,53 +174,31 @@ function new_b_cursor()
     spr(46, x, y, 2, 2, 1)
     pal()
   end
-
   return bc
 end
-
 function new_t_cursor()
   local tc = {}
   tc.i = 0
-
   tc.left = function(self)
     self.i -= 1
     if (self.i < 0) self.i = 0
   end
-
   tc.right = function(self)
     self.i += 1
     if (self.i > 7) self.i = 7
   end
-
   tc.update = function(self)
     if (selected != "tileset") return
     if (btnp(0))self:left()
     if (btnp(1))self:right()
   end
-
   tc.draw = function(self)
     if (selected != "tileset") pal(7, 8)
     spr(46, self.i * 16, 112, 2, 2, 1)
     pal()
   end
-
   return tc
 end
--->8
---garbage
-function z_init()
-cursorx = 0
-cursory = 0
-xmax = 6
-ymax = 5
-pcursor = 0
-alltiles = {2, 4, 6, 8, 10, 12, 14, 32, 34, 36, 38}
-cooldown = 0
-cooldownmax = 5
-cursorswap = 0
-game = new_game()
-end
-
 __gfx__
 000000000000000006666666666666660ccc11111c11111006666666666666600ffffffffffffff0cccc11111c111111fffffffffffffff90666666666666660
 0000000000000000b066666666666166b01cc111cc111106b06666666666610bc0ffffff9fffff0cc11cc111cc11111cffffffff9ffffffff06666666666610b
