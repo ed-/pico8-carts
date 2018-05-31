@@ -41,23 +41,47 @@ function new_game()
 
   local game = {}
   
-  game.actors = {}
   game.cells = {}
-  for i = 0, 32 * 16 do
-    add(game.actors, new_cell(i))
-    game.cells[i] = i
+  for i = 1, (32 * 16) + 1 do
+    add(game.cells, new_cell(i))
   end
   
+  game.swap = function(self, a, b)
+    local _a = self.cells[a]
+    _a.position = b
+    local _b = self.cells[b]
+    _b.position = a
+    self.cells[a] = _b
+    self.cells[b] = _a
+  end
+  
+  game.shuffle = function(self)
+    local m = 32 * 16 + 1
+    while m > 1 do
+      local i = flr(rnd(m - 1)) + 1
+      m -= 1
+      self:swap(i, m)
+    end
+  end
+  
+  game.actors = {}
   add(game.actors, new_cursor())
+  
+  game.cell_at = function(self, id)
+    return self.cells[id]
+  end
     
   game.update = function(self)
+    foreach(game.cells, update)  
     foreach(game.actors, update)
   end
 
   game.draw = function(self)
+    foreach(game.cells, draw)
     foreach(game.actors, draw)
   end
-  
+
+  game:shuffle()  
   return game
 end
 -->8
@@ -67,7 +91,7 @@ function new_cursor()
   
   z.x = 0
   z.y = 0
-  z.c = 0
+  z.c = 1
   z._max = 32 * 16
   
   z.update = function(self)
@@ -83,43 +107,47 @@ function new_cursor()
     if btnp(3) then
       self:down()
     end
-    self.x = flr(self.c % 32) * 4
-    self.y = flr(self.c / 32) * 8
+    local c = self.c - 1
+    self.x = flr(c % 32) * 4
+    self.y = flr(c / 32) * 8
   end
 
   z.left = function(self)
-    if (self.c > 0) then
+    if (self.c > 1) then
       self.c -= 1
     end
   end
 
   z.right = function(self)
-    if (self.c < self._max - 1) then
+    if (self.c < self._max) then
       self.c += 1
     end
   end
 
   z.up = function(self)
-    if (self.c > 31) then
+    if (self.c > 32) then
       self.c -= 32
     end
   end
 
   z.down = function(self)
-    if (self.c < self._max - 32) then
+    if (self.c <= self._max - 32) then
       self.c += 32
     end
   end
   
   z.draw = function(self)
     spr(9, self.x, self.y)
-    local c = game.cells[self.c]
+    --local cell = game:cell_at(self.c)
+    local cell = game:cell_at(self.c)
+    local index = cell.index
+    local _info = index .. " " .. self.c
     for i=-1,1 do
       for j=-1,1 do
-        print(c, 1 + i, 122 + j, 0)
+        print(_info, 1 + i, 122 + j, 0)
       end
     end
-    print(c, 1, 122, 7)
+    print(_info, 1, 122, 7)
   end
   
   return z
@@ -130,7 +158,7 @@ end
 function new_cell(id)
   local z = {}
   
-  z.id = id
+  z.index = id
   z.position = id
   
   z.x = -4
@@ -140,17 +168,18 @@ function new_cell(id)
   z._red = 11
   z._green = 12
   
-  z.state = 0
+  z.state = z._green
   
   z.update = function(self)
     if self.state == self._off then
       return
     end
     
-    self.x = (self.position % 32) * 4
-    self.y = flr(self.position / 32) * 8
+    local p = self.position - 1
+    self.x = flr(p % 32) * 4
+    self.y = flr(p / 32) * 8
 
-    if self.id == self.position then
+    if self.index == self.position then
       self.state = self._green
     else
       self.state = self._red
