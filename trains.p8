@@ -68,7 +68,9 @@ function game:new_game()
   
   self.cursors = {}  
   add(self.cursors, pcursor:new{player=0, pcolor=8})
-  
+  add(self.cursors, pcursor:new{player=1, pcolor=12, c=7})
+  add(self.cursors, pcursor:new{player=2, pcolor=11, r=7})
+  add(self.cursors, pcursor:new{player=2, pcolor=10, r=7, c=7})
   self.board = board:new{}
   self.board:new_board()
 
@@ -103,6 +105,8 @@ pcursor = class:new{
   c = 0,
   x = 0,
   y = 0,
+  heldr = nil,
+  heldc = nil,
 }
 
 function pcursor:update()
@@ -159,11 +163,19 @@ function pcursor:down()
 end
 
 function pcursor:rotate()
-  _game.board:rotate(self.r, self.c, self.pcolor)
+  if _game.board:rotate(self.r, self.c, self.pcolor) then
+    _game.board:uncolor(self.heldr, self.heldc, self.pcolor)
+    self.heldr = self.r
+    self.heldc = self.c
+  end
 end
 
 function pcursor:switch()
-  _game.board:switch(self.r, self.c, self.pcolor)
+  if _game.board:switch(self.r, self.c, self.pcolor) then
+    _game.board:uncolor(self.heldr, self.heldc, self.pcolor)
+    self.heldr = self.r
+    self.heldc = self.c
+  end
 end
 -->8
 -- board
@@ -196,7 +208,7 @@ end
 function board:rotate(r, c, pcolor)
   for t in all(self.tiles) do
     if t.r == r and t.c == c then
-      t:rotate(pcolor)
+      return t:rotate(pcolor)
     end
   end
 end
@@ -204,7 +216,15 @@ end
 function board:switch(r, c, pcolor)
   for t in all(self.tiles) do
     if t.r == r and t.c == c then
-      t:switch(pcolor)
+      return t:switch(pcolor)
+    end
+  end
+end
+
+function board:uncolor(r, c, pcolor)
+  for t in all(self.tiles) do
+    if t.r == r and t.c == c then
+      t:uncolor(pcolor)
     end
   end
 end
@@ -233,20 +253,22 @@ end
 
 function tile:rotate(pcolor)
   if self.pcolor != 0 then
-    return
+    return false
   end
   local z = {2, 1, 4, 3}
   self.face = z[self.face]
   self.pcolor = pcolor
+  return true
 end
 
 function tile:switch(pcolor)
   if self.pcolor != 0 then
-    return
+    return false
   end
   local z = {3, 4, 1, 2}
   self.face = z[self.face]
   self.pcolor = pcolor
+  return true
 end
 
 function tile:uncolor()
