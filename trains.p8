@@ -21,11 +21,6 @@ truchet tron with trains
 - cannot change a tile if it was just changed
 - cannot change a tile if there are any trains on it
 
-directions
-1  2  3  4  5  6  7  8
-n  ne e  se s  sw w  nw
-
-
 --]]
 
 
@@ -71,7 +66,7 @@ game = class:new{
 
 function game:new_game()
   self.actors = {}
-  add(self.actors, train:new{player=0, pcolor=8})
+  add(self.actors, train:new{player=0, pcolor=8, facing=s, x=4})
   
   self.cursors = {}  
   add(self.cursors, pcursor:new{player=0, pcolor=8})
@@ -133,27 +128,35 @@ function board:draw()
   end
 end
 
-function board:rotate(r, c, pcolor)
+function board:tile_at(r, c)
   for t in all(self.tiles) do
     if t.r == r and t.c == c then
-      return t:rotate(pcolor)
+      return t
     end
   end
+  return nil
+end
+
+function board:rotate(r, c, pcolor)
+  local t = self:tile_at(r, c)
+  if t != nil then
+    return t:rotate(pcolor)
+  end
+  return false
 end
 
 function board:switch(r, c, pcolor)
-  for t in all(self.tiles) do
-    if t.r == r and t.c == c then
-      return t:switch(pcolor)
-    end
+  local t = self:tile_at(r, c)
+  if t != nil then
+    return t:switch(pcolor)
   end
+  return false
 end
 
 function board:uncolor(r, c, pcolor)
-  for t in all(self.tiles) do
-    if t.r == r and t.c == c then
-      t:uncolor(pcolor)
-    end
+  local t = self:tile_at(r, c)
+  if t != nil then
+    t:uncolor(pcolor)
   end
 end
 -->8
@@ -166,6 +169,7 @@ turns_nw = 36
 turns_ne = 38
 
 --directions
+stand = 0
 n, ne, e, se, s, sw, w, nw = 1, 2, 3, 4, 5, 6, 7, 8
 
 tile = class:new{
@@ -226,22 +230,22 @@ end
 function tile:sequence(direction)
   local paths = {
     [cross_ns] = {
-      [n] = {s, s, s, s, s, s, s, s, s, s, s, s, s, s, s, s},
-      [s] = {n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n},
-      [w] = {e, e, e, e, e, e, e, e, e, e, e, e, e, e, e, e},
-      [e] = {w, w, w, w, w, w, w, w, w, w, w, w, w, w, w, w},
+      [s] = {s, s, s, s, s, s, s, s, s, s, s, s, s, s, s, s},
+      [n] = {n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n},
+      [e] = {e, e, e, e, e, e, e, e, e, e, e, e, e, e, e, e},
+      [w] = {w, w, w, w, w, w, w, w, w, w, w, w, w, w, w, w},
     },
     [cross_we] = {
-      [n] = {s, s, s, s, s, s, s, s, s, s, s, s, s, s, s, s},
-      [s] = {n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n},
-      [w] = {e, e, e, e, e, e, e, e, e, e, e, e, e, e, e, e},
-      [e] = {w, w, w, w, w, w, w, w, w, w, w, w, w, w, w, w},
+      [s] = {s, s, s, s, s, s, s, s, s, s, s, s, s, s, s, s},
+      [n] = {n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n},
+      [e] = {e, e, e, e, e, e, e, e, e, e, e, e, e, e, e, e},
+      [w] = {w, w, w, w, w, w, w, w, w, w, w, w, w, w, w, w},
     },
     [turns_nw] = {
-      [n] = {s, s, s, s, s, s, s, s, s, w, w, w, w, w, w, w, w},
-      [s] = {n, n, n, n, n, n, n, n, n, e, e, e, e, e, e, e, e},
-      [w] = {e, e, e, e, e, e, e, e, e, n, n, n, n, n, n, n, n},
-      [e] = {w, w, w, w, w, w, w, w, w, s, s, s, s, s, s, s, s},
+      [s] = {s, s, s, s, s, s, s, s, s, w, w, w, w, w, w, w, w},
+      [n] = {n, n, n, n, n, n, n, n, n, e, e, e, e, e, e, e, e},
+      [e] = {e, e, e, e, e, e, e, e, e, n, n, n, n, n, n, n, n},
+      [w] = {w, w, w, w, w, w, w, w, w, s, s, s, s, s, s, s, s},
     },
     [turns_ne] = {
       [n] = {s, s, s, s, s, s, s, s, s, e, e, e, e, e, e, e, e},
@@ -347,12 +351,49 @@ train = class:new{
   x = 0,
   y = 0,
   facing = 1,
-  seq = 1,
   sequence = {},
 }
 
 function train:update()
+  if #(self.sequence) == 0 then
+    _game.board:uncolor(self.r, self.c)
+    self.r, self.c = self:rc()
+    local t = _game.board:tile_at(self.r, self.c)
+    if t != nil then
+      t.pcolor = 6
+      local newseq = t:sequence(self.facing)
+      for sq in all(newseq) do
+        add(self.sequence, sq)
+      end
+    end
+  end
+  self:move()
+end
 
+function train:move()
+  local m = self.sequence[1]
+  del(self.sequence, m)
+  local xy = {
+    [n] = { 0, -1}, [ne] = { 1, -1},
+    [e] = { 1,  0}, [se] = { 1,  1},
+    [s] = { 0,  1}, [sw] = {-1,  1},
+    [w] = {-1,  0}, [nw] = {-1, -1},
+    [stand] = {0, 0},
+  }
+  local next = xy[m]
+  self.x += next[1]
+  self.y += next[2]
+  if m != stand then
+    self.facing = m
+  end  
+end
+
+function train:rc()
+  self.x = self.x % 128
+  self.y = self.y % 128
+  local c = flr(self.x / 16)
+  local r = flr(self.y / 16)
+  return r, c
 end
 
 function train:draw()
