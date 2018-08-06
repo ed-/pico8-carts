@@ -9,15 +9,17 @@ truchet tron with trains
 
 - toggle individual tiles
 - your train and theirs run
-- the tracks
 - try not to die
 - toggle between cross/switch
   or just rotate 
+- maybe some dead end/turn around tiles
   
 - turn based or cooldown based
 - maybe random +length powerups
 
 - crashes can happen at cross intersections
+- crashes can happen head-on anywhere
+
 - cannot change a tile if it was just changed
 - cannot change a tile if there are any trains on it
 
@@ -66,7 +68,10 @@ game = class:new{
 
 function game:new_game()
   self.actors = {}
-  add(self.actors, train:new{player=0, pcolor=8, facing=s, x=4})
+  add(self.actors, train:new{
+    player=0, pcolor=8,
+    facing=s, x=4,
+    sequence={s, s, s, s, s, s, s, s, s}})
   
   self.cursors = {}  
   add(self.cursors, pcursor:new{player=0, pcolor=8})
@@ -230,28 +235,28 @@ end
 function tile:sequence(direction)
   local paths = {
     [cross_ns] = {
-      [s] = {s, s, s, s, s, s, s, s, s, s, s, s, s, s, s, s},
-      [n] = {n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n},
-      [e] = {e, e, e, e, e, e, e, e, e, e, e, e, e, e, e, e},
-      [w] = {w, w, w, w, w, w, w, w, w, w, w, w, w, w, w, w},
+      [s] = {s, s, s, s,   s, s, s, s,   s, s, s, s,   s, s, s, s},
+      [n] = {n, n, n, n,   n, n, n, n,   n, n, n, n,   n, n, n, n},
+      [e] = {e, e, e, e,   e, e, e, e,   e, e, e, e,   e, e, e, e},
+      [w] = {w, w, w, w,   w, w, w, w,   w, w, w, w,   w, w, w, w},
     },
     [cross_we] = {
-      [s] = {s, s, s, s, s, s, s, s, s, s, s, s, s, s, s, s},
-      [n] = {n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n},
-      [e] = {e, e, e, e, e, e, e, e, e, e, e, e, e, e, e, e},
-      [w] = {w, w, w, w, w, w, w, w, w, w, w, w, w, w, w, w},
+      [s] = {s, s, s, s,   s, s, s, s,   s, s, s, s,   s, s, s, s},
+      [n] = {n, n, n, n,   n, n, n, n,   n, n, n, n,   n, n, n, n},
+      [e] = {e, e, e, e,   e, e, e, e,   e, e, e, e,   e, e, e, e},
+      [w] = {w, w, w, w,   w, w, w, w,   w, w, w, w,   w, w, w, w},
     },
     [turns_nw] = {
-      [s] = {s, s, s, s, s, s, s, s, s, w, w, w, w, w, w, w, w},
-      [n] = {n, n, n, n, n, n, n, n, n, e, e, e, e, e, e, e, e},
-      [e] = {e, e, e, e, e, e, e, e, e, n, n, n, n, n, n, n, n},
-      [w] = {w, w, w, w, w, w, w, w, w, s, s, s, s, s, s, s, s},
+      [s] = {s, s, s, s,   s, s, s, s,   s, s, w, w,   w, w, w, w},
+      [n] = {n, n, n, n,   n, n, n, n,   n, n, e, e,   e, e, e, e},
+      [e] = {e, e, e, e,   e, e, e, e,   e, e, n, n,   n, n, n, n},
+      [w] = {w, w, w, w,   w, w, w, w,   w, w, s, s,   s, s, s, s},
     },
     [turns_ne] = {
-      [n] = {s, s, s, s, s, s, s, s, s, e, e, e, e, e, e, e, e},
-      [s] = {n, n, n, n, n, n, n, n, n, w, w, w, w, w, w, w, w},
-      [w] = {e, e, e, e, e, e, e, e, e, s, s, s, s, s, s, s, s},
-      [e] = {w, w, w, w, w, w, w, w, n, n, n, n, n, n, n, n, n},
+      [s] = {s, s, s, s,   s, s, s, s,   s, s, e, e,   e, e, e, e},
+      [n] = {n, n, n, n,   n, n, n, n,   n, n, w, w,   w, w, w, w},
+      [e] = {e, e, e, e,   e, e, e, e,   e, e, s, s,   s, s, s, s},
+      [w] = {w, w, w, w,   w, w, w, w,   w, w, n, n,   n, n, n, n},
     },
   }
   return paths[self.face][direction]
@@ -355,6 +360,11 @@ train = class:new{
 }
 
 function train:update()
+  local skip=false
+  skip = not btnp(5)
+  if skip then
+    return
+  end
   if #(self.sequence) == 0 then
     _game.board:uncolor(self.r, self.c)
     self.r, self.c = self:rc()
@@ -370,6 +380,25 @@ function train:update()
   self:move()
 end
 
+function train:headlight()
+  -- offset of right headlight from xy
+  local offs = {
+    [n]  = {5, 1},
+    [ne] = {6, 3},
+    [e]  = {6, 5},
+    [se] = {4, 6},
+    [s]  = {2, 6},
+    [sw] = {1, 4},
+    [w]  = {1, 2},
+    [nw] = {1, 3},
+  }
+  print(self.facing)
+  local off = offs[self.facing]
+  local hx = self.x + off[1]
+  local hy = self.y + off[2]
+  return hx % 128, hy % 128
+end
+
 function train:move()
   local m = self.sequence[1]
   del(self.sequence, m)
@@ -383,16 +412,17 @@ function train:move()
   local next = xy[m]
   self.x += next[1]
   self.y += next[2]
+  self.x %= 128
+  self.y %= 128
   if m != stand then
     self.facing = m
   end  
 end
 
 function train:rc()
-  self.x = self.x % 128
-  self.y = self.y % 128
-  local c = flr(self.x / 16)
-  local r = flr(self.y / 16)
+  local hx, hy = self:headlight()
+  local c = flr(hx / 16)
+  local r = flr(hy / 16)
   return r, c
 end
 
@@ -400,6 +430,9 @@ function train:draw()
   local sprite = 15 + self.facing
   pal(15, self.pcolor)
   spr(sprite, self.x, self.y)
+  --print(#self.sequence, self.x, self.y, 7)
+  local hx, hy = self:headlight()
+  pset(hx, hy, 7)
   pal()
 end
 __gfx__
