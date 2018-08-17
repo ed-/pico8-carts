@@ -68,13 +68,13 @@ game = class:new{
 
 function game:new_game()
   self.actors = {}
-  add(self.actors, ztrain:new{
+  add(self.actors, train:new{
     player=0, pcolor=8,
     facing=s, x=20, y=0,
     sequence={s, s, s, s, s, s, s, s, s, s}})
   
   self.cursors = {}  
-  --add(self.cursors, pcursor:new{player=0, pcolor=8})
+  add(self.cursors, pcursor:new{player=0, pcolor=8})
   --add(self.cursors, pcursor:new{player=1, pcolor=12, c=7})
   --add(self.cursors, pcursor:new{player=2, pcolor=11, r=7})
   --add(self.cursors, pcursor:new{player=2, pcolor=10, r=7, c=7})
@@ -247,16 +247,16 @@ function tile:sequence(direction)
       [e] = {e, e, e, e,   e, e, e, e,   e, e, e, e,   e, e, e, e},
     },
     [turns_nw] = {
-      [n] = {n, n, n, n,   n, n, n, n,   e, e, e, e,   e, e, e, e},
-      [s] = {s, s, s, s,   s, s, s, s,   w, w, w, w,   w, w, w, w},
-      [w] = {w, w, w, w,   w, w, w, w,   s, s, s, s,   s, s, s, s},
-      [e] = {e, e, e, e,   e, e, e, e,   n, n, n, n,   n, n, n, n},
+      [n] = {n, n, n, n,   ne, ne, ne, ne,   e, e, e, e},
+      [s] = {s, s, s, s,   sw, sw, sw, sw,   w, w, w, w},
+      [w] = {w, w, w, w,   sw, sw, sw, sw,   s, s, s, s},
+      [e] = {e, e, e, e,   ne, ne, ne, ne,   n, n, n, n},
     },
     [turns_ne] = {
-      [n] = {n, n, n, n,   n, n, n, n,   w, w, w, w,   w, w, w, w},
-      [s] = {s, s, s, s,   s, s, s, s,   e, e, e, e,   e, e, e, e},
-      [w] = {w, w, w, w,   w, w, w, w,   w, w, w, w,   w, w, w, w},
-      [e] = {e, e, e, e,   e, e, e, e,   e, e, e, e,   e, e, e, e},
+      [n] = {n, n, n, n,   nw, nw, nw, nw,   w, w, w, w},
+      [s] = {s, s, s, s,   se, se, se, se,   e, e, e, e},
+      [w] = {w, w, w, w,   nw, nw, nw, nw,   n, n, n, n},
+      [e] = {e, e, e, e,   se, se, se, se,   s, s, s, s},
     },
   }
   return paths[self.face][direction]
@@ -406,9 +406,23 @@ function train:move()
 end
 
 function train:rc()
-  local c = flr(self.x / 16)
-  local r = flr(self.y / 16)
+  local hx, hy = self:hl()
+  local c = flr(hx / 16)
+  local r = flr(hy / 16)
   return r, c
+end
+
+function train:hl()
+  local offset = {
+    [n] = {5, 1}, [ne] = {6, 3},
+    [e] = {6, 5}, [se] = {4, 6},
+    [s] = {2, 6}, [sw] = {1, 4},
+    [w] = {1, 2}, [nw] = {3, 1},
+    [stand] = {0, 0},
+  }
+  local d = offset[self.facing]
+  local dx, dy = d[1], d[2]
+  return self.x + dx, self.y + dy
 end
 
 function train:draw()
@@ -423,7 +437,8 @@ function train:draw()
   local y = self.y
   spr(sprites[self.facing], x, y)
   print(#self.sequence, x + 10, y, 6)
-  pset(self.x, self.y, 7)
+  local hx, hy = self:hl()
+  pset(hx, hy, 7)
   pal()
 end
 
