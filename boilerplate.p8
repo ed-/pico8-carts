@@ -136,21 +136,21 @@ end
 function new_mouse()
   poke(0x5f2d, 1)
   z = {}
-  
+
   z.x = 0
   z.y = 0
   z.click = 0
-  
+
   z.update = function(self)
     z.x = stat(32)
     z.y = stat(33)
     z.click = stat(34)
   end
-  
+
   z.draw = function(self)
     spr(1, self.x - 2, self.y - 2)
   end
-  
+
   return z
 end
 __gfx__
