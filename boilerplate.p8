@@ -41,31 +41,15 @@ function class:new(z)
   self.__index = self
   return z
 end
-
 -->8
 -- game
 game = class:new{
   actors = {},
 }
 
-function new_game()
-
-  local game = {}
-  
-  game.actors = {}
-  
-  add(game.actors, new_button(0, "⬅️", 8 *  4, 8 * 8))
-  add(game.actors, new_button(1, "➡️", 8 *  6, 8 * 8))
-  add(game.actors, new_button(2, "⬆️", 8 *  5, 8 * 7))
-  add(game.actors, new_button(3, "⬇️", 8 *  5, 8 * 9))
-  add(game.actors, new_button(4, "🅾️", 8 *  9, 8 * 8))
-  add(game.actors, new_button(5, "❎", 8 * 11, 8 * 8))
-
-  add(game.actors, new_cursor())
-  add(game.actors, new_mouse())
-    
-  game.update = function(self)
-    foreach(game.actors, update)
+function game:update()
+  for actor in all(self.actors) do
+    actor:update()
   end
 end
 
