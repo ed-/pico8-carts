@@ -9,13 +9,16 @@ function _init()
   _mode = 0
   _frame = 0
   _game = game:new{}
-  add(_game.actors, button:new{key=0, label="⬅️", x=8 *  4, y=8 * 8})
-  add(_game.actors, button:new{key=1, label="➡️", x=8 *  6, y=8 * 8})
-  add(_game.actors, button:new{key=2, label="⬆️", x=8 *  5, y=8 * 7})
-  add(_game.actors, button:new{key=3, label="⬇️", x=8 *  5, y=8 * 9})
-  add(_game.actors, button:new{key=4, label="🅾️", x=8 *  9, y=8 * 8})
-  add(_game.actors, button:new{key=5, label="❎", x=8 * 11, y=8 * 8})
+  add(_game.actors, button:new{key=0, label="⬅️", x=8 *  4, y=8 * 10})
+  add(_game.actors, button:new{key=1, label="➡️", x=8 *  6, y=8 * 10})
+  add(_game.actors, button:new{key=2, label="⬆️", x=8 *  5, y=8 *  9})
+  add(_game.actors, button:new{key=3, label="⬇️", x=8 *  5, y=8 * 11})
+  add(_game.actors, button:new{key=4, label="🅾️", x=8 *  9, y=8 * 10})
+  add(_game.actors, button:new{key=5, label="❎", x=8 * 11, y=8 * 10})
   add(_game.actors, walker:new{})
+  
+  enable_mouse()
+  add(_game.actors, mouse:new{})
 end
 
 function _update()
@@ -132,47 +135,24 @@ function walker:down()
 end
 -->8
 -- mouse
-function new_mouse()
+mouse = class:new{
+  x = 0,
+  y = 0,
+  click = 0
+}
+
+function enable_mouse()
   poke(0x5f2d, 1)
-  z = {}
-
-  z.x = 0
-  z.y = 0
-  z.click = 0
-
-  z.update = function(self)
-    z.x = stat(32)
-    z.y = stat(33)
-    z.click = stat(34)
-  end
-
-  z.draw = function(self)
-    spr(1, self.x - 2, self.y - 2)
-  end
-
-  return z
 end
--->8
--- mouse
-function new_mouse()
-  poke(0x5f2d, 1)
-  z = {}
-  
-  z.x = 0
-  z.y = 0
-  z.click = 0
-  
-  z.update = function(self)
-    z.x = stat(32)
-    z.y = stat(33)
-    z.click = stat(34)
-  end
-  
-  z.draw = function(self)
-    spr(1, self.x - 2, self.y - 2)
-  end
-  
-  return z
+
+function mouse:update()
+  self.x = stat(32) - 2
+  self.y = stat(33) - 2
+  self.click = stat(34)
+end
+
+function mouse:draw()
+  spr(1, self.x, self.y)
 end
 __gfx__
 00000000005000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
