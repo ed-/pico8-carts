@@ -6,6 +6,24 @@ __lua__
 
 --remake of gamedesign.jp's "chat noir"
 
+function _init()
+  board = boardclass:new()
+  board:newboard()
+end
+
+function _draw()
+  cls(7)
+  board:draw()
+end
+
+function _update()
+  board:update()
+end
+
+function new_game()
+  board:newboard()
+end
+
 class = {}
 function class:new(z)
   z = z or {}
@@ -14,49 +32,7 @@ function class:new(z)
   return z
 end
 
-game = class:new{
-  tiles = {},
-  select = {},
-}
-
-function game:update()
-  for actor in all(self.tiles) do
-    actor:update()
-  end
-  self.select:update()
-end
-
-function game:draw()
-  for actor in all(self.tiles) do
-    actor:draw()
-  end
-  self.select:draw()
-end
-
-function _init()
-  _game = game:new{select=sel:new()}
-  local x, y
-  for row=0,10 do
-    for col=0,10 do
-      x, y = rc_xy(row, col)
-      add(_game.tiles, tile:new{row=row, col=col, x=x, y=y})
-    end
-  end
-  --randomize()
-  calc_distances()
-end
-
-function _draw()
-  cls(7)
-  _game:draw()
-end
-
-function _update()
-  _game:update()
-  
-end
-
-function rc_xy(r, c)
+function rc2xy(r, c)
   local x, y
   x, y = c * 8, r * 8
   if r % 2 == 1 then
@@ -65,12 +41,51 @@ function rc_xy(r, c)
   return x + 16, y + 20
 end
 
-function tile_at(r, c)
-  for t in all(_game.tiles) do
-    if t.row == r and t.col == c then
-      return t
+-->8
+--board
+
+boardclass = class:new{
+  spaces = {},
+  rc = {},
+  crsr = nil,
+}
+
+function boardclass:newboard()
+  self.spaces = {}
+  self.rc = {}
+  self.crsr = cursorclass:new()
+  for row=0,10 do
+    self.rc[row] = {}
+    for col=0,10 do
+      x, y = rc2xy(row, col)
+      z = spaceclass:new{row=row, col=col, x=x, y=y}
+      add(self.spaces, z)
+      self.rc[row][col] = z
     end
   end
+  calc_distances()
+end
+
+function boardclass:update()
+  for space in all(self.spaces) do
+    space:update()
+  end
+  self.crsr:update()
+end
+
+function boardclass:draw()
+  for space in all(self.spaces) do
+    space:draw()
+  end
+  self.crsr:draw()
+end
+
+function tile_at(r, c)
+  if board.rc[r] == nil then
+    return nil
+  end
+  return board.rc[r][c]
+  
 end
 
 function neighbors(r, c)
@@ -94,8 +109,8 @@ end
 function randomize()
   local stopped = 0
   while stopped < 6 do
-    i = flr(rnd(#_game.tiles))
-    t = _game.tiles[i + 1]
+    i = flr(rnd(#board.spaces))
+    t = board.spaces[i + 1]
     if t.r != 5 or t.c != 5 then
       if t.blocking == false then
         t.blocking = true
@@ -106,14 +121,14 @@ function randomize()
 end
 
 function calc_distances()
-  for t in all(_game.tiles) do
+  for t in all(board.spaces) do
     t.distance = nil
   end
   
   local changed = 0
   repeat
     changed = 0
-    for t in all(_game.tiles) do
+    for t in all(board.spaces) do
       before = t.distance
       t:howfar()
       after = t.distance
@@ -129,9 +144,10 @@ function calc_distances()
     end
   until changed == 0    
 end
+
 -->8
---tiles
-tile = class:new{
+--spaces
+spaceclass = class:new{
   row = 0,
   col = 0,
   x = 0,
@@ -140,7 +156,7 @@ tile = class:new{
   distance = nil,
 }
 
-function tile:draw()
+function spaceclass:draw()
   local s = 1
   if self.blocking then
     s += 2
@@ -152,13 +168,10 @@ function tile:draw()
   end
 end
 
-function tile:update()
+function spaceclass:update()
 end
 
-function tile:howfar()
-  --if self.distance != nil then
-  --  return self.distance
-  --end
+function spaceclass:howfar()
   if self.blocking then
     self.distance = nil
     return nil
@@ -171,9 +184,8 @@ function tile:howfar()
     self.distance = 0
     return 0
   end
-  local ns = neighbors(self.row, self.col)
   local d = nil
-  for n in all(ns) do
+  for n in all(neighbors(self.row, self.col)) do
     if n != nil then
       if n.distance != nil then
         if d == nil then
@@ -194,7 +206,7 @@ end
 
 -->8
 --cursor
-sel = class:new{
+cursorclass = class:new{
   row = 0,
   col = 0,
   x = 0,
@@ -202,7 +214,7 @@ sel = class:new{
   _tile = nil,
 }
 
-function sel:draw()
+function cursorclass:draw()
   spr(18, self.x, self.y)
   local ns = neighbors(self.row, self.col)
   v = "("
@@ -219,7 +231,7 @@ function sel:draw()
   print(v, 0, 0)
 end
 
-function sel:update()
+function cursorclass:update()
   if btnp(0) then
     self.col -= 1
   end
@@ -241,7 +253,7 @@ function sel:update()
   
   self.col = self.col % 11
   self.row = self.row % 11
-  self.x, self.y = rc_xy(self.row, self.col)
+  self.x, self.y = rc2xy(self.row, self.col)
   self._tile = tile_at(self.row, self.col)
 
 end
