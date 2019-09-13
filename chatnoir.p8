@@ -4,7 +4,8 @@ __lua__
 --chatnoir
 --slumberheart
 
---remake of gamedesign.jp's "chat noir"
+-- demake of gamedesign.jp's
+-- "chat noir"
 
 function _init()
   difficulty = "normal"
@@ -310,7 +311,11 @@ function catclass:draw()
   end
 end
 
-function catclass:choose() 
+function catclass:choose()
+  if board.result != nil then
+    return
+  end
+  
   chosen = nil
   ns = board:neighbors(self.row, self.col)
 
@@ -399,6 +404,9 @@ function cursorclass:draw()
 end
 
 function cursorclass:choose()
+  if board.result != nil then
+    return
+  end
   if board.player_turns > 0 then
     if not self.space.blocking then
       self.space.blocking = true
