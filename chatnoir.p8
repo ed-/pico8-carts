@@ -6,22 +6,23 @@ __lua__
 
 --remake of gamedesign.jp's "chat noir"
 
+
 function _init()
+  difficulty = "normal"
+  show_distances = false
+  player_turns = 1
   board = boardclass:new()
   board:newboard()
-end
-
-function _draw()
-  cls(7)
-  board:draw()
+  menuitem(1, ("mode: " .. difficulty), change_difficulty)
 end
 
 function _update()
   board:update()
 end
 
-function new_game()
-  board:newboard()
+function _draw()
+  cls(7)
+  board:draw()
 end
 
 class = {}
@@ -41,29 +42,62 @@ function rc2xy(r, c)
   return x + 16, y + 20
 end
 
+function change_difficulty()
+  -- normal: no markers, 1 turn
+  local od = difficulty
+  if od == "normal" then
+    difficulty = "learn"
+  end
+  if od == "learn" then
+    difficulty = "easy"
+  end
+  if od == "easy" then
+    difficulty = "normal"
+  end
+
+  if difficulty == "normal" then
+    show_distances = false
+    player_turns = 1
+  end
+  if difficulty == "learn" then
+    show_distances = true
+    player_turns = 1
+  end
+  if difficulty == "easy" then
+    show_distances = true
+    player_turns = 2
+  end
+  menuitem(1, ("mode: " .. difficulty), change_difficulty)
+end
 -->8
 --board
 
 boardclass = class:new{
   spaces = {},
   rc = {},
+  cat = nil,
   crsr = nil,
+  player_turns = 0,
 }
 
 function boardclass:newboard()
   self.spaces = {}
   self.rc = {}
   self.crsr = cursorclass:new()
+
+  self.player_turns = 0
   for row=0,10 do
     self.rc[row] = {}
     for col=0,10 do
-      x, y = rc2xy(row, col)
-      z = spaceclass:new{row=row, col=col, x=x, y=y}
+      z = spaceclass:new{row=row, col=col}
       add(self.spaces, z)
       self.rc[row][col] = z
     end
   end
-  calc_distances()
+  local catspace = self:space_at(5, 5)
+  self.cat = catclass:new{space=catspace}
+  self:randomize()
+  self:calc_distances()
 end
 
 function boardclass:update()
@@ -71,6 +105,7 @@ function boardclass:update()
     space:update()
   end
   self.crsr:update()
+  self.cat:update()
 end
 
 function boardclass:draw()
@@ -78,60 +113,62 @@ function boardclass:draw()
     space:draw()
   end
   self.crsr:draw()
+  self.cat:draw()
+  if self.player_turns == 0 then
+    print("wait", 54, 120, 6)
+  end
 end
 
-function tile_at(r, c)
-  if board.rc[r] == nil then
+function boardclass:space_at(r, c)
+  if self.rc[r] == nil then
     return nil
   end
-  return board.rc[r][c]
-  
+  return self.rc[r][c]  
 end
 
-function neighbors(r, c)
+function boardclass:neighbors(r, c)
   local n = {
-    tile_at(r, c - 1),
-    tile_at(r, c + 1),
-    tile_at(r - 1, c),
-    tile_at(r + 1, c),
+    self:space_at(r, c - 1),
+    self:space_at(r, c + 1),
+    self:space_at(r - 1, c),
+    self:space_at(r + 1, c),
   }
   if r % 2 == 0 then
-    add(n, tile_at(r - 1, c - 1))
-    add(n, tile_at(r + 1, c - 1))
+    add(n, self:space_at(r - 1, c - 1))
+    add(n, self:space_at(r + 1, c - 1))
   else
-    add(n, tile_at(r - 1, c + 1))
-    add(n, tile_at(r + 1, c + 1))
+    add(n, self:space_at(r - 1, c + 1))
+    add(n, self:space_at(r + 1, c + 1))
   end
 
   return n
 end
 
-function randomize()
-  local stopped = 0
-  while stopped < 6 do
-    i = flr(rnd(#board.spaces))
-    t = board.spaces[i + 1]
+function boardclass:randomize()
+  local changed = 0
+  while changed < 6 do
+    i = flr(rnd(#self.spaces))
+    t = self.spaces[i + 1]
     if t.r != 5 or t.c != 5 then
       if t.blocking == false then
         t.blocking = true
-        stopped += 1
+        changed += 1
       end
     end
   end
 end
 
-function calc_distances()
-  for t in all(board.spaces) do
+function boardclass:calc_distances()
+  for t in all(self.spaces) do
     t.distance = nil
-  end
-  
+  end  
   local changed = 0
   repeat
     changed = 0
-    for t in all(board.spaces) do
-      before = t.distance
-      t:howfar()
-      after = t.distance
+    for space in all(self.spaces) do
+      before = space.distance
+      space:calc_distance()
+      after = space.distance
       if before == nil then
         if after != nil then
           changed += 1
@@ -144,7 +181,6 @@ function calc_distances()
     end
   until changed == 0    
 end
-
 -->8
 --spaces
 spaceclass = class:new{
@@ -156,22 +192,25 @@ spaceclass = class:new{
   distance = nil,
 }
 
+function spaceclass:update()
+  self.x, self.y = rc2xy(self.row, self.col)
+end
+
 function spaceclass:draw()
   local s = 1
   if self.blocking then
-    s += 2
+    s = 2
   end
   spr(s, self.x, self.y)
-  local v = self.distance
-  if v != nil then
-    print(v, self.x + 2, self.y + 1, 3)
+  if show_distances then
+    local v = self.distance
+    if v != nil then
+      print(v, self.x + 2, self.y + 1, 3)
+    end
   end
 end
 
-function spaceclass:update()
-end
-
-function spaceclass:howfar()
+function spaceclass:calc_distance()
   if self.blocking then
     self.distance = nil
     return nil
@@ -185,7 +224,7 @@ function spaceclass:howfar()
     return 0
   end
   local d = nil
-  for n in all(neighbors(self.row, self.col)) do
+  for n in all(board:neighbors(self.row, self.col)) do
     if n != nil then
       if n.distance != nil then
         if d == nil then
@@ -203,7 +242,78 @@ function spaceclass:howfar()
 end
 -->8
 --cat
+catclass = class:new{
+  space = nil,
+  x = -8,
+  y = 60,
+}
 
+function catclass:update()
+  if board.player_turns == 0 then
+    self:choose()
+  end
+  self:move()
+end
+
+function catclass:draw()
+  local s = 3
+  if self.space != nil then
+    if self.space.distance == nil then
+      s = 4
+    end
+  end
+  spr(s, self.x, self.y)
+end
+
+function catclass:choose()
+  if self.chosen then
+    return
+  end
+  chosen = nil
+  for n in all(board:neighbors(self.row, self.col)) do
+    if n != nil then
+      if chosen == nil then
+        if n.distance != nil then
+          chosen = nil
+        end
+      end
+      if chosen != nil then
+        if n.chosen < chosen.distance then
+          chosen = n
+        end
+      end
+    end
+  end
+  if chosen == nil then
+    -- game over lil kitty!
+    self.status = "lost"
+  elseif chosen.distance == 0 then
+    -- uh oh you lose!
+    self.status = "won"
+  else
+    self.row = chosen.row
+    self.col = chosen.col
+    self.chosen = true
+  end
+end
+
+function catclass:move()
+  rx, ry = rc2xy(self.row, self.col)
+  if self.x < rx then
+    self.x += 1
+  elseif self.x > rx then
+    self.x -= 1
+  end
+  if self.y < ry then
+    self.y += 1
+  elseif self.y > ry then
+    self.y -= 1
+  end
+  if self.x == rx and self.y == ry then
+    self.chosen = false
+    board.player_turns = player_turns
+  end  
+end
 -->8
 --cursor
 cursorclass = class:new{
@@ -211,25 +321,8 @@ cursorclass = class:new{
   col = 0,
   x = 0,
   y = 0,
-  _tile = nil,
+  space = nil,
 }
-
-function cursorclass:draw()
-  spr(18, self.x, self.y)
-  local ns = neighbors(self.row, self.col)
-  v = "("
-  for n in all(ns) do
-    if n == nil then
-      v = v .. "., "
-    elseif n.distance == nil then
-      v = v .. ": "
-    else
-      v = v .. n.distance .. ", "
-    end
-  end
-  v = v .. ")"
-  print(v, 0, 0)
-end
 
 function cursorclass:update()
   if btnp(0) then
@@ -245,32 +338,34 @@ function cursorclass:update()
     self.row += 1
   end
   if btnp(4) then
-    if not self._tile.blocking then
-      self._tile.blocking = true
-      calc_distances()
-    end
+    self:choose()
   end
   
   self.col = self.col % 11
   self.row = self.row % 11
   self.x, self.y = rc2xy(self.row, self.col)
-  self._tile = tile_at(self.row, self.col)
+  self.space = board:space_at(self.row, self.col)
+end
 
+function cursorclass:draw()
+  spr(0, self.x, self.y)
+end
+
+function cursorclass:choose()
+  if board.player_turns > 0 then
+    if not self.space.blocking then
+      self.space.blocking = true
+      board:calc_distances()
+      board.player_turns -= 1
+    end
+  end
 end
 __gfx__
-0000000077777777777bb77777777777777227770000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000777bb77777baab7777733777772332770000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0070070077bbbb777baaaab777333377723333270000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000770007bbbbbb7baaaaaab73333337233333320000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000770007bbbbbb7baaaaaab73333337233333320000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0070070077bbbb777baaaab777333377723333270000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000777bb77777baab7777733777772332770000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000077777777777bb77777777777777227770000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-75777757747777470002200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-751775e1742774e20020020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-75515ee174424ee20200002000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-75555551744444422000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-1b55b551204404422000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-53553555404404440200002000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-15e5555124e444420020020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-71055117720442270002200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00022000777777777777777705000050050000500500005000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00200200777bb77777733777051005e1051005e1051005e100000000000000000000000000000000000000000000000000000000000000000000000000000000
+0200002077bbbb777733337705515ee105515ee105515ee100000000000000000000000000000000000000000000000000000000000000000000000000000000
+200000027bbbbbb77333333705555551055555510555555100000000000000000000000000000000000000000000000000000000000000000000000000000000
+200000027bbbbbb7733333371b55b551155555511555555100000000000000000000000000000000000000000000000000000000000000000000000000000000
+0200002077bbbb777733337753553555515115555151155500000000000000000000000000000000000000000000000000000000000000000000000000000000
+00200200777bb7777773377715e5555115e5555115e5555100000000000000000000000000000000000000000000000000000000000000000000000000000000
+00022000777777777777777701255110012551100125511000000000000000000000000000000000000000000000000000000000000000000000000000000000
