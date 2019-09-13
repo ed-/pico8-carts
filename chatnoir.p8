@@ -6,13 +6,12 @@ __lua__
 
 --remake of gamedesign.jp's "chat noir"
 
-
 function _init()
   difficulty = "normal"
   show_distances = false
   player_turns = 1
   board = boardclass:new()
-  board:newboard()
+  board:init()
   menuitem(1, ("mode: " .. difficulty), change_difficulty)
 end
 
@@ -68,24 +67,24 @@ function change_difficulty()
     player_turns = 2
   end
   menuitem(1, ("mode: " .. difficulty), change_difficulty)
+  board:init()
 end
+
 -->8
 --board
-
 boardclass = class:new{
   spaces = {},
   rc = {},
-  cat = nil,
   crsr = nil,
+  cat = nil,
   player_turns = 0,
+  result = nil,
+  timeout = 120,
 }
 
-function boardclass:newboard()
+function boardclass:init()
   self.spaces = {}
   self.rc = {}
-  self.crsr = cursorclass:new()
-
-  self.player_turns = 0
   for row=0,10 do
     self.rc[row] = {}
     for col=0,10 do
@@ -94,8 +93,12 @@ function boardclass:newboard()
       self.rc[row][col] = z
     end
   end
-  local catspace = self:space_at(5, 5)
-  self.cat = catclass:new{space=catspace}
+  self.crsr = cursorclass:new()
+  self.cat = catclass:new()
+  self.player_turns = 0
+  self.result = nil
+  self.timeout = 60
+
   self:randomize()
   self:calc_distances()
 end
@@ -114,8 +117,24 @@ function boardclass:draw()
   end
   self.crsr:draw()
   self.cat:draw()
-  if self.player_turns == 0 then
-    print("wait", 54, 120, 6)
+  
+  if self.result == true then
+      print("you win", 50, 120, 11)
+  elseif self.result == false then
+      print("i win", 52, 120, 11)
+  else
+    if self.player_turns == 0 then
+      print("wait", 54, 120, 6)
+    else
+      print("your turn", 44, 120, 6)
+    end
+  end
+  if self.result != nil then
+    if self.timeout > 0 then
+      self.timeout -= 1
+    else
+      self:init()
+    end
   end
 end
 
@@ -127,21 +146,28 @@ function boardclass:space_at(r, c)
 end
 
 function boardclass:neighbors(r, c)
-  local n = {
+  local ns = {
     self:space_at(r, c - 1),
     self:space_at(r, c + 1),
     self:space_at(r - 1, c),
     self:space_at(r + 1, c),
   }
   if r % 2 == 0 then
-    add(n, self:space_at(r - 1, c - 1))
-    add(n, self:space_at(r + 1, c - 1))
+    add(ns, self:space_at(r - 1, c - 1))
+    add(ns, self:space_at(r + 1, c - 1))
   else
-    add(n, self:space_at(r - 1, c + 1))
-    add(n, self:space_at(r + 1, c + 1))
+    add(ns, self:space_at(r - 1, c + 1))
+    add(ns, self:space_at(r + 1, c + 1))
   end
-
-  return n
+  local rn = {}
+  for n in all(ns) do
+    if n != nil then
+      if n.distance != nil then
+        add(rn, n)
+      end
+    end
+  end
+  return rn
 end
 
 function boardclass:randomize()
@@ -243,54 +269,61 @@ end
 -->8
 --cat
 catclass = class:new{
-  space = nil,
+  row = 5,
+  col = 5,
   x = -8,
   y = 60,
+  chosen = true,
 }
 
 function catclass:update()
-  if board.player_turns == 0 then
+  --[[ a cat can only choose
+  a new space if it's its turn
+  and it hasn't already chosen
+  --]]
+  if board.player_turns == 0 and not self.chosen then
     self:choose()
   end
+
+  --[[ a cat will always move
+  toward its chosen space
+  --]]
   self:move()
+
+  --[[ if the cat moves to its
+  chosen space then it's done
+  moving, so it's back to the
+  player's turn again.
+  --]]
+  self:think()
 end
 
 function catclass:draw()
-  local s = 3
-  if self.space != nil then
-    if self.space.distance == nil then
-      s = 4
-    end
+  if self.chosen then
+    local cx, cy = rc2xy(self.row, self.col)
+    spr(5, cx, cy)
   end
-  spr(s, self.x, self.y)
+  if board.player_turns == 0 then
+    spr(3, self.x, self.y)
+  else
+    spr(4, self.x, self.y)
+  end
 end
 
-function catclass:choose()
-  if self.chosen then
-    return
-  end
+function catclass:choose() 
   chosen = nil
+  ns = board:neighbors(self.row, self.col)
+
   for n in all(board:neighbors(self.row, self.col)) do
-    if n != nil then
-      if chosen == nil then
-        if n.distance != nil then
-          chosen = nil
-        end
-      end
-      if chosen != nil then
-        if n.chosen < chosen.distance then
-          chosen = n
-        end
-      end
+    if chosen == nil then
+      chosen = n
+    end
+    if n.distance < chosen.distance then
+      chosen = n
     end
   end
-  if chosen == nil then
-    -- game over lil kitty!
-    self.status = "lost"
-  elseif chosen.distance == 0 then
-    -- uh oh you lose!
-    self.status = "won"
-  else
+
+  if chosen != nil then
     self.row = chosen.row
     self.col = chosen.col
     self.chosen = true
@@ -309,9 +342,21 @@ function catclass:move()
   elseif self.y > ry then
     self.y -= 1
   end
+end
+
+function catclass:think()
+  rx, ry = rc2xy(self.row, self.col)
   if self.x == rx and self.y == ry then
     self.chosen = false
-    board.player_turns = player_turns
+    local space = board:space_at(self.row, self.col)
+    if space.distance == nil then
+      board.result = true
+    elseif space.distance == 0 then
+      board.result = false
+    end
+    if board.player_turns == 0 then
+      board.player_turns = player_turns
+    end
   end  
 end
 -->8
@@ -337,14 +382,16 @@ function cursorclass:update()
   if btnp(3) then
     self.row += 1
   end
-  if btnp(4) then
-    self:choose()
-  end
   
   self.col = self.col % 11
   self.row = self.row % 11
   self.x, self.y = rc2xy(self.row, self.col)
   self.space = board:space_at(self.row, self.col)
+
+  if btnp(4) or btnp(5) then
+    self:choose()
+  end
+  
 end
 
 function cursorclass:draw()
@@ -361,11 +408,11 @@ function cursorclass:choose()
   end
 end
 __gfx__
-00022000777777777777777705000050050000500500005000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00200200777bb77777733777051005e1051005e1051005e100000000000000000000000000000000000000000000000000000000000000000000000000000000
-0200002077bbbb777733337705515ee105515ee105515ee100000000000000000000000000000000000000000000000000000000000000000000000000000000
-200000027bbbbbb77333333705555551055555510555555100000000000000000000000000000000000000000000000000000000000000000000000000000000
-200000027bbbbbb7733333371b55b551155555511555555100000000000000000000000000000000000000000000000000000000000000000000000000000000
-0200002077bbbb777733337753553555515115555151155500000000000000000000000000000000000000000000000000000000000000000000000000000000
-00200200777bb7777773377715e5555115e5555115e5555100000000000000000000000000000000000000000000000000000000000000000000000000000000
-00022000777777777777777701255110012551100125511000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0002200077777777777777770500005005000050000cc00000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00200200777bb77777733777051005e1051005e100c00c0000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0200002077bbbb777733337705515ee105515ee10c0000c000000000000000000000000000000000000000000000000000000000000000000000000000000000
+200000027bbbbbb7733333370555555105555551c000000c00000000000000000000000000000000000000000000000000000000000000000000000000000000
+200000027bbbbbb7733333371b55b55115555551c000000c00000000000000000000000000000000000000000000000000000000000000000000000000000000
+0200002077bbbb777733337753553555515115550c0000c000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00200200777bb7777773377715e5555115e5555100c00c0000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0002200077777777777777770125511001255110000cc00000000000000000000000000000000000000000000000000000000000000000000000000000000000
